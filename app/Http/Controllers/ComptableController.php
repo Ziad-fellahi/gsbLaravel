@@ -19,32 +19,30 @@ class GererFraisController extends Controller
      */
     public function saisirFrais()
     {
-        // Cas 1 : C'est un Visiteur -> On affiche la page normale
+        // 1. Vérification : Est-ce un Visiteur connecté ?
         if (session('visiteur')) {
             $visiteur = session('visiteur');
             $idVisiteur = $visiteur['id'];
 
+            // Calcul du mois en cours (ex: "202311" pour Novembre 2023)
             $mois = $this->getMois(date("d/m/Y"));
             $numAnnee = substr($mois, 0, 4);
             $numMois = substr($mois, 4, 2);
 
+            // Vérifie si c'est le premier frais du mois, sinon crée la nouvelle fiche
             if ($this->pdo->estPremierFraisMois($idVisiteur, $mois)) {
                 $this->pdo->creeNouvellesLignesFrais($idVisiteur, $mois);
             }
 
+            // Récupère les frais existants
             $lesFrais = $this->pdo->getLesFraisForfait($idVisiteur, $mois);
 
+            // Affiche la vue (assurez-vous que le fichier resources/views/saisirFrais.blade.php existe)
             return view('saisirFrais', compact('lesFrais', 'numMois', 'numAnnee', 'visiteur'));
-        }
-        // Cas 2 : C'est un COMPTABLE qui arrive ici par erreur (redirection automatique)
-        // -> On le renvoie vers SA page à lui (Validation des fiches)
-        elseif (session('comptable')) {
-            return redirect()->route('chemin_gestionFichesComptable');
-        }
-        // Cas 3 : Personne n'est connecté -> Retour case départ
-        else {
+        } else {
+            // Si ce n'est pas un visiteur, retour à la connexion
             return redirect()->route('chemin_connexion')
-                ->with('errors', 'Veuillez vous connecter.');
+                ->with('errors', 'Accès réservé aux visiteurs.');
         }
     }
 
@@ -58,8 +56,10 @@ class GererFraisController extends Controller
             $idVisiteur = $visiteur['id'];
             $mois = $this->getMois(date("d/m/Y"));
 
+            // Récupération des données du formulaire (tableau 'lesFrais')
             $lesFrais = $request->input('lesFrais');
 
+            // Validation simple
             if ($this->lesQteFraisValides($lesFrais)) {
                 $this->pdo->majFraisForfait($idVisiteur, $mois, $lesFrais);
                 return redirect()->route('gestionFrais')
@@ -73,12 +73,18 @@ class GererFraisController extends Controller
         }
     }
 
+    /**
+     * Retourne le mois au format aaaamm selon la date passée en paramètre (jj/mm/aaaa)
+     */
     private function getMois($date)
     {
         @list($jour, $mois, $annee) = explode('/', $date);
         return $annee . $mois;
     }
 
+    /**
+     * Vérifie que les quantités de frais sont bien numériques
+     */
     private function lesQteFraisValides($lesFrais)
     {
         return collect($lesFrais)->every(function ($qte) {

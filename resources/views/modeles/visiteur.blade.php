@@ -3,6 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="{{ app()->getLocale() }}">
   <head>
     <title>Intranet du Laboratoire Galaxy-Swiss Bourdin</title>
+
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <link href="{{ asset('css/styles.css') }}" rel="stylesheet" type="text/css" />
     <link rel="shortcut icon" type="image/x-icon" href="./images/favicon.ico" />
@@ -11,12 +12,14 @@
     <div id="page">
       <div id="entete">
         <img src="{{ asset('images/logo.jpg')}}" id="logoGSB" alt="Laboratoire Galaxy-Swiss Bourdin" title="Laboratoire Galaxy-Swiss Bourdin" />
+          <h2> <a href="{{ route('chemin_connexion') }}" class="btn">Connexion Accueil</a> </h2>
         <h1>Suivi du remboursement des frais</h1>
+
       </div>
-      @yield('menu') 
-      @yield('contenu1') 
-      @yield('contenu2') 
+      @yield('menu')
+      @yield('contenu1')
+      @yield('contenu2')
      </div>
-        
+
     </body>
   </html>
