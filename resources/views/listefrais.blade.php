@@ -1,8 +1,14 @@
 @extends ('listemois')
 @section('contenu2')
 
-<h3>Fiche de frais du mois {{ $numMois }}-{{ $numAnnee }} : 
-    </h3>
+<h3>Fiche de frais du mois {{ $numMois }}-{{ $numAnnee }} :</h3>
+
+<div style="margin-top: 10px;">
+    <a href="{{ route('chemin_telechargerFrais', ['mois' => $leMois]) }}" class="btn btn-primary">
+        Télécharger le PDF
+    </a>
+</div>
+
     <div class="encadre">
     <p>
     Etat : <strong>{{ $libEtat }} depuis le {{ $dateModif }} </strong>
@@ -17,7 +23,7 @@
 		</tr>
         <tr>
             @foreach($lesFraisForfait as $unFraisForfait)
-                <td class="qteForfait">{{ $unFraisForfait['quantite'] }} 
+                <td class="qteForfait">{{ $unFraisForfait['quantite'] }}
                 </td>
             @endforeach
 		</tr>

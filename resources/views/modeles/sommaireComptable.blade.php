@@ -1,20 +1,31 @@
-@extends('modeles/visiteur') <!-- tu peux créer modeles/comptable.blade.php si tu veux -->
+@extends('modeles/visiteur')
 
 @section('menu')
-    <!-- Menu gauche pour le comptable -->
     <div id="menuGauche">
         <div id="infosUtil">
-            <strong>Bonjour {{ $comptable['nom'] . ' ' . $comptable['prenom'] }}</strong>
+            <h2>Comptable</h2>
         </div>
         <ul id="menuList">
             <li class="smenu">
-                <a href="{{ route('gestionFrais') }}" title="Valider fiche de frais">Valider fiche de frais</a>
+                <strong>Bonjour {{ $comptable['nom'] . ' ' . $comptable['prenom'] }}</strong>
             </li>
+
             <li class="smenu">
-                <a href="{{ route('suiviPaiement') }}" title="Suivre paiement">Suivre paiement</a>
+                <a href="{{ route('chemin_gestionFichesComptable') }}" title="Valider fiches de frais">
+                    Valider fiches de frais
+                </a>
             </li>
+
             <li class="smenu">
-                <a href="{{ route('deconnexion') }}" title="Se déconnecter">Déconnexion</a>
+                <a href="{{ route('suiviPaiement') }}" title="Suivre le paiement des fiches de frais">
+                    Suivre paiement fiches de frais
+                </a>
+            </li>
+
+            <li class="smenu">
+                <a href="{{ route('chemin_deconnexion') }}" title="Se déconnecter">
+                    Déconnexion
+                </a>
             </li>
         </ul>
     </div>

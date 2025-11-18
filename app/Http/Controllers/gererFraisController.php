@@ -3,23 +3,16 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\MyApp\PdoGsb;
+use PdoGsb;
+use MyDate;
 
 class GererFraisController extends Controller
 {
-    private $pdo;
-
-    public function __construct()
-    {
-        $this->pdo = new PdoGsb();
-    }
-
     /**
      * Affiche le formulaire de saisie des frais pour le mois courant
      */
     public function saisirFrais()
     {
-        // Cas 1 : C'est un Visiteur -> On affiche la page normale
         if (session('visiteur')) {
             $visiteur = session('visiteur');
             $idVisiteur = $visiteur['id'];
@@ -28,20 +21,18 @@ class GererFraisController extends Controller
             $numAnnee = substr($mois, 0, 4);
             $numMois = substr($mois, 4, 2);
 
-            if ($this->pdo->estPremierFraisMois($idVisiteur, $mois)) {
-                $this->pdo->creeNouvellesLignesFrais($idVisiteur, $mois);
+            if (PdoGsb::estPremierFraisMois($idVisiteur, $mois)) {
+                PdoGsb::creeNouvellesLignesFrais($idVisiteur, $mois);
             }
 
-            $lesFrais = $this->pdo->getLesFraisForfait($idVisiteur, $mois);
+            $lesFrais = PdoGsb::getLesFraisForfait($idVisiteur, $mois);
 
-            return view('saisirFrais', compact('lesFrais', 'numMois', 'numAnnee', 'visiteur'));
+            return view('saisirFrais')
+                ->with('lesFrais', $lesFrais)
+                ->with('numMois', $numMois)
+                ->with('numAnnee', $numAnnee)
+                ->with('visiteur', $visiteur);
         }
-        // Cas 2 : C'est un COMPTABLE qui arrive ici par erreur (redirection automatique)
-        // -> On le renvoie vers SA page à lui (Validation des fiches)
-        elseif (session('comptable')) {
-            return redirect()->route('chemin_gestionFichesComptable');
-        }
-        // Cas 3 : Personne n'est connecté -> Retour case départ
         else {
             return redirect()->route('chemin_connexion')
                 ->with('errors', 'Veuillez vous connecter.');
@@ -61,11 +52,14 @@ class GererFraisController extends Controller
             $lesFrais = $request->input('lesFrais');
 
             if ($this->lesQteFraisValides($lesFrais)) {
-                $this->pdo->majFraisForfait($idVisiteur, $mois, $lesFrais);
-                return redirect()->route('gestionFrais')
+                PdoGsb::majFraisForfait($idVisiteur, $mois, $lesFrais);
+
+                // CORRECTION ICI : on utilise 'chemin_gestionFrais' au lieu de 'gestionFrais'
+                return redirect()->route('chemin_gestionFrais')
                     ->with('success', 'Les modifications ont bien été mises à jour');
             } else {
-                return redirect()->route('gestionFrais')
+                // CORRECTION ICI AUSSI
+                return redirect()->route('chemin_gestionFrais')
                     ->with('errors', 'Les valeurs des frais doivent être numériques');
             }
         } else {
@@ -73,12 +67,18 @@ class GererFraisController extends Controller
         }
     }
 
+    /**
+     * Retourne le mois au format aaaamm selon la date passée en paramètre (jj/mm/aaaa)
+     */
     private function getMois($date)
     {
         @list($jour, $mois, $annee) = explode('/', $date);
         return $annee . $mois;
     }
 
+    /**
+     * Vérifie que les quantités de frais sont bien numériques
+     */
     private function lesQteFraisValides($lesFrais)
     {
         return collect($lesFrais)->every(function ($qte) {

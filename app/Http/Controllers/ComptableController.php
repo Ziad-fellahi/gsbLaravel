@@ -3,92 +3,95 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\MyApp\PdoGsb;
+use PdoGsb;
+use MyDate;
+use Barryvdh\DomPDF\Facade\Pdf;
 
-class GererFraisController extends Controller
+class ComptableController extends Controller
 {
-    private $pdo;
+    // 1. PAGE VALIDER FICHES
+    function gestionFiches(){
+        if(session('comptable') != null){
+            $comptable = session('comptable');
+            $lesFiches = PdoGsb::getToutesLesFiches();
 
-    public function __construct()
-    {
-        $this->pdo = new PdoGsb();
-    }
-
-    /**
-     * Affiche le formulaire de saisie des frais pour le mois courant
-     */
-    public function saisirFrais()
-    {
-        // 1. Vérification : Est-ce un Visiteur connecté ?
-        if (session('visiteur')) {
-            $visiteur = session('visiteur');
-            $idVisiteur = $visiteur['id'];
-
-            // Calcul du mois en cours (ex: "202311" pour Novembre 2023)
-            $mois = $this->getMois(date("d/m/Y"));
-            $numAnnee = substr($mois, 0, 4);
-            $numMois = substr($mois, 4, 2);
-
-            // Vérifie si c'est le premier frais du mois, sinon crée la nouvelle fiche
-            if ($this->pdo->estPremierFraisMois($idVisiteur, $mois)) {
-                $this->pdo->creeNouvellesLignesFrais($idVisiteur, $mois);
-            }
-
-            // Récupère les frais existants
-            $lesFrais = $this->pdo->getLesFraisForfait($idVisiteur, $mois);
-
-            // Affiche la vue (assurez-vous que le fichier resources/views/saisirFrais.blade.php existe)
-            return view('saisirFrais', compact('lesFrais', 'numMois', 'numAnnee', 'visiteur'));
-        } else {
-            // Si ce n'est pas un visiteur, retour à la connexion
-            return redirect()->route('chemin_connexion')
-                ->with('errors', 'Accès réservé aux visiteurs.');
+            return view('validerFiches')
+                ->with('lesFiches', $lesFiches)
+                ->with('comptable', $comptable)
+                ->with('visiteur', $comptable); // Astuce pour éviter l'erreur variable undefined
         }
-    }
-
-    /**
-     * Enregistre les modifications du formulaire (POST)
-     */
-    public function sauvegarderFrais(Request $request)
-    {
-        if (session('visiteur')) {
-            $visiteur = session('visiteur');
-            $idVisiteur = $visiteur['id'];
-            $mois = $this->getMois(date("d/m/Y"));
-
-            // Récupération des données du formulaire (tableau 'lesFrais')
-            $lesFrais = $request->input('lesFrais');
-
-            // Validation simple
-            if ($this->lesQteFraisValides($lesFrais)) {
-                $this->pdo->majFraisForfait($idVisiteur, $mois, $lesFrais);
-                return redirect()->route('gestionFrais')
-                    ->with('success', 'Les modifications ont bien été mises à jour');
-            } else {
-                return redirect()->route('gestionFrais')
-                    ->with('errors', 'Les valeurs des frais doivent être numériques');
-            }
-        } else {
+        else{
             return redirect()->route('chemin_connexion');
         }
     }
 
-    /**
-     * Retourne le mois au format aaaamm selon la date passée en paramètre (jj/mm/aaaa)
-     */
-    private function getMois($date)
-    {
-        @list($jour, $mois, $annee) = explode('/', $date);
-        return $annee . $mois;
+    function validerFiche($idVisiteur, $mois){
+        if(session('comptable') != null){
+            PdoGsb::validerFiche($idVisiteur, $mois);
+            return redirect()->route('chemin_gestionFichesComptable')
+                ->with('success', 'Fiche validée avec succès !');
+        }
+        return redirect()->route('chemin_connexion');
     }
 
-    /**
-     * Vérifie que les quantités de frais sont bien numériques
-     */
-    private function lesQteFraisValides($lesFrais)
-    {
-        return collect($lesFrais)->every(function ($qte) {
-            return is_numeric($qte);
-        });
+    // 2. PAGE SUIVI PAIEMENT
+    function suiviPaiement(){
+        if(session('comptable') != null){
+            $comptable = session('comptable');
+            $lesFiches = PdoGsb::getFichesValidees();
+
+            return view('suiviPaiement')
+                ->with('lesFiches', $lesFiches)
+                ->with('comptable', $comptable)
+                ->with('visiteur', $comptable);
+        }
+        else{
+            return redirect()->route('chemin_connexion');
+        }
+    }
+
+    // ACTION DU FORMULAIRE PAIEMENT
+    function payerFiche(Request $request){
+        if(session('comptable') != null){
+            $idVisiteur = $request->input('idVisiteur');
+            $mois = $request->input('mois');
+
+            // Passage à l'état "Remboursée" (RB)
+            PdoGsb::majEtatFicheFrais($idVisiteur, $mois, 'RB');
+
+            return redirect()->route('suiviPaiement')
+                ->with('success', 'Fiche mise en paiement.');
+        }
+        return redirect()->route('chemin_connexion');
+    }
+
+    // 3. PDF
+    public function telechargerPdf($idVisiteur, $mois){
+        if(session('comptable') != null){
+            $visiteur = PdoGsb::getLeVisiteur($idVisiteur);
+            $lesFraisForfait = PdoGsb::getLesFraisForfait($idVisiteur, $mois);
+            $lesInfosFicheFrais = PdoGsb::getLesInfosFicheFrais($idVisiteur, $mois);
+
+            $numAnnee = MyDate::extraireAnnee($mois);
+            $numMois = MyDate::extraireMois($mois);
+            $libEtat = $lesInfosFicheFrais['libEtat'];
+            $montantValide = $lesInfosFicheFrais['montantValide'];
+            $nbJustificatifs = $lesInfosFicheFrais['nbJustificatifs'];
+            $dateModif =  $lesInfosFicheFrais['dateModif'];
+            $dateModifFr = MyDate::getFormatFrançais($dateModif);
+
+            $pdf = Pdf::loadView('pdf.fichefrais', [
+                'visiteur' => $visiteur,
+                'lesFraisForfait' => $lesFraisForfait,
+                'numAnnee' => $numAnnee,
+                'numMois' => $numMois,
+                'libEtat' => $libEtat,
+                'montantValide' => $montantValide,
+                'nbJustificatifs' => $nbJustificatifs,
+                'dateModif' => $dateModifFr
+            ]);
+            return $pdf->download('fiche-'.$visiteur['nom'].'-'.$mois.'.pdf');
+        }
+        return redirect()->route('chemin_connexion');
     }
 }

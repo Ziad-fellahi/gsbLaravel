@@ -10,18 +10,13 @@ class PdoGsb
 
     public function __construct()
     {
-        // Récupération des informations de connexion
         $serveur = 'mysql:host=' . Config::get('database.connections.mysql.host');
         $bdd = 'dbname=' . Config::get('database.connections.mysql.database');
         $user = Config::get('database.connections.mysql.username');
         $mdp = Config::get('database.connections.mysql.password');
-
-        // Création de l'instance PDO
         $this->pdo = new PDO($serveur . ';' . $bdd, $user, $mdp);
         $this->pdo->query("SET CHARACTER SET utf8");
     }
-
-    // ------------------- VISITEUR -------------------
 
     public function getInfosVisiteur($login, $mdp)
     {
@@ -36,11 +31,9 @@ class PdoGsb
         $ok = false;
         $req = "SELECT count(*) as nblignesfrais FROM fichefrais
                 WHERE fichefrais.mois = :mois AND fichefrais.idVisiteur = :idVisiteur";
-
         $stmt = $this->pdo->prepare($req);
         $stmt->execute(['mois' => $mois, 'idVisiteur' => $idVisiteur]);
         $laLigne = $stmt->fetch();
-
         if ($laLigne && $laLigne['nblignesfrais'] == 0) {
             $ok = true;
         }
@@ -74,11 +67,9 @@ class PdoGsb
                 VALUES(:idVisiteur,:mois,0,0,now(),'CR')";
         $stmt = $this->pdo->prepare($req);
         $stmt->execute(['idVisiteur' => $idVisiteur, 'mois' => $mois]);
-
         $reqIds = "SELECT id FROM fraisforfait";
         $stmtIds = $this->pdo->query($reqIds);
         $lesIdFrais = $stmtIds->fetchAll();
-
         foreach ($lesIdFrais as $uneLigneIdFrais) {
             $idFrais = $uneLigneIdFrais['id'];
             $req = "INSERT INTO lignefraisforfait(idVisiteur,mois,idFraisForfait,quantite)
@@ -131,15 +122,34 @@ class PdoGsb
         }
     }
 
-    // ------------------- COMPTABLE -------------------
+    public function getInfosComptable($login, $mdp)
+    {
+        $req = "SELECT id, nom, prenom FROM comptable WHERE login = :login AND mdp = :mdp";
+        $stmt = $this->pdo->prepare($req);
+        $stmt->execute(['login' => $login, 'mdp' => $mdp]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    // ------------------- METHODES COMPTABLE -------------------
 
     public function getToutesLesFiches()
     {
-        // Récupère les infos complètes (avec nom/prénom) pour l'affichage comptable
-        $req = "SELECT f.idVisiteur, v.nom, v.prenom, f.mois, f.nbJustificatifs, f.montantValide, e.libelle as etat
+        $req = "SELECT f.idVisiteur, v.nom, v.prenom, f.mois, f.nbJustificatifs, f.montantValide, f.dateModif, f.idEtat, e.libelle as etat
                 FROM fichefrais f
                 INNER JOIN etat e ON f.idEtat = e.id
                 INNER JOIN visiteur v ON f.idVisiteur = v.id
+                ORDER BY f.mois DESC";
+        $stmt = $this->pdo->query($req);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getFichesValidees()
+    {
+        $req = "SELECT f.idVisiteur, v.nom, v.prenom, f.mois, f.nbJustificatifs, f.montantValide, f.dateModif, f.idEtat, e.libelle as etat
+                FROM fichefrais f
+                INNER JOIN etat e ON f.idEtat = e.id
+                INNER JOIN visiteur v ON f.idVisiteur = v.id
+                WHERE f.idEtat = 'VA'
                 ORDER BY f.mois DESC";
         $stmt = $this->pdo->query($req);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -153,11 +163,23 @@ class PdoGsb
         $stmt->execute(['idVisiteur' => $idVisiteur, 'mois' => $mois]);
     }
 
-    public function getInfosComptable($login, $mdp)
+    public function majEtatFicheFrais($idVisiteur, $mois, $etat)
     {
-        $req = "SELECT id, nom, prenom FROM comptable WHERE login = :login AND mdp = :mdp";
+        $req = "UPDATE fichefrais SET idEtat = :etat, dateModif = now()
+                WHERE idVisiteur = :idVisiteur AND mois = :mois";
         $stmt = $this->pdo->prepare($req);
-        $stmt->execute(['login' => $login, 'mdp' => $mdp]);
+        $stmt->execute([
+            'etat' => $etat,
+            'idVisiteur' => $idVisiteur,
+            'mois' => $mois
+        ]);
+    }
+
+    public function getLeVisiteur($idVisiteur)
+    {
+        $req = "SELECT id, nom, prenom FROM visiteur WHERE id = :id";
+        $stmt = $this->pdo->prepare($req);
+        $stmt->execute(['id' => $idVisiteur]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 }

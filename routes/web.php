@@ -28,14 +28,7 @@ Route::post('/',[
     'uses'=> ConnexionController::class . '@valider'
 ]);
 
-// 1. Route pour le Comptable (nom court)
 Route::get('deconnexion',[
-    'as'=>'deconnexion',
-    'uses'=> ConnexionController::class . '@deconnecter'
-]);
-
-// 2. Route Doublure pour le Visiteur (ancien nom 'chemin_...')
-Route::get('logout',[
     'as'=>'chemin_deconnexion',
     'uses'=> ConnexionController::class . '@deconnecter'
 ]);
@@ -51,28 +44,15 @@ Route::post('listeFrais',[
     'uses'=> EtatFraisController::class . '@voirFrais'
 ]);
 
-/*-------------------- Use case gérer les frais---------------------------*/
+Route::get('telechargerFrais/{mois}', [
+    'as' => 'chemin_telechargerFrais',
+    'uses' => EtatFraisController::class . '@telechargerPdf'
+]);
 
-// 1. La route officielle (attendue par le Contrôleur de Connexion)
+/*-------------------- Use case gérer les frais---------------------------*/
 Route::get('gererFrais',[
     'as'=>'chemin_gestionFrais',
     'uses'=> GererFraisController::class . '@saisirFrais'
-]);
-
-// 2. La route "Doublure" (attendue par le Menu Visiteur)
-Route::get('saisirFrais',[
-    'as'=>'gestionFrais',
-    'uses'=> GererFraisController::class . '@saisirFrais'
-]);
-
-// CORRECTION : Ajout de la route POST pour 'saisirFrais'
-Route::post('saisirFrais',[
-    'uses'=> GererFraisController::class . '@sauvegarderFrais'
-]);
-
-// Route pour accepter le POST direct sur la page 'gererFrais'
-Route::post('gererFrais',[
-    'uses'=> GererFraisController::class . '@sauvegarderFrais'
 ]);
 
 Route::post('sauvegarderFrais',[
@@ -80,14 +60,23 @@ Route::post('sauvegarderFrais',[
     'uses'=> GererFraisController::class . '@sauvegarderFrais'
 ]);
 
-/*-------------------- Use case Comptable---------------------------*/
+/*-------------------- Use case Comptable ---------------------------*/
 
-// Routes pour le comptable
+// 1. Gestion des fiches (Valider)
 Route::get('/comptable/fiches', [ComptableController::class, 'gestionFiches'])
     ->name('chemin_gestionFichesComptable');
 
 Route::get('/comptable/valider/{idVisiteur}/{mois}', [ComptableController::class, 'validerFiche'])
     ->name('chemin_validerFiche');
 
+// 2. Suivi de paiement
 Route::get('/comptable/suiviPaiement', [ComptableController::class, 'suiviPaiement'])
     ->name('suiviPaiement');
+
+// Route POST pour le paiement (Correction "Method not supported")
+Route::post('/comptable/payerFiche', [ComptableController::class, 'payerFiche'])
+    ->name('chemin_payerFiche');
+
+// 3. PDF Comptable
+Route::get('/comptable/pdf/{idVisiteur}/{mois}', [ComptableController::class, 'telechargerPdf'])
+    ->name('chemin_telechargerPdfComptable');

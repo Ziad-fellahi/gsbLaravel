@@ -1,64 +1,51 @@
-@extends('modeles.comptable')
+@extends('modeles.sommaireComptable')
 
-@section('contenu')
-    <div class="panel panel-primary">
-        <div class="panel-heading">
-            <h3 class="panel-title">Validation des fiches de frais</h3>
-        </div>
-        <div class="panel-body">
-            <table class="table table-striped table-hover">
+@section('contenu1')
+    <div id="contenu">
+        <h2>Validation des fiches de frais</h2>
+
+        @if (session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+
+        <div class="encadre">
+            <table class="listeLegere">
                 <thead>
                 <tr>
                     <th>Visiteur</th>
                     <th>Mois</th>
-                    <th>Justificatifs</th>
-                    <th>Montant</th>
-                    <th>État actuel</th>
+                    <th>Total</th>
+                    <th>Date Modif</th>
+                    <th>Etat</th>
                     <th>Action</th>
                 </tr>
                 </thead>
                 <tbody>
-                @foreach($fiches as $fiche)
+                @forelse($lesFiches as $fiche)
                     <tr>
-                        <!-- Nom et Prénom (grâce à la jointure SQL ajoutée précédemment) -->
                         <td>{{ $fiche['nom'] }} {{ $fiche['prenom'] }}</td>
-
-                        <!-- Formatage du mois (ex: 202301 -> 01/2023) -->
+                        <td>{{ substr($fiche['mois'], 4, 2) }}/{{ substr($fiche['mois'], 0, 4) }}</td>
+                        <td>{{ $fiche['montantValide'] }} €</td>
+                        <td>{{ $fiche['dateModif'] }}</td>
+                        <td>{{ $fiche['etat'] }}</td>
                         <td>
-                            {{ substr($fiche['mois'], 4, 2) }}/{{ substr($fiche['mois'], 0, 4) }}
-                        </td>
-
-                        <td class="text-center">{{ $fiche['nbJustificatifs'] }}</td>
-                        <td class="text-right">{{ $fiche['montantValide'] }} €</td>
-
-                        <!-- Affichage de l'état avec une couleur conditionnelle -->
-                        <td>
-                            @if($fiche['idEtat'] == 'VA')
-                                <span class="label label-success">Validée</span>
-                            @elseif($fiche['idEtat'] == 'CL')
-                                <span class="label label-warning">Saisie clôturée</span>
-                            @elseif($fiche['idEtat'] == 'CR')
-                                <span class="label label-info">En cours</span>
-                            @else
-                                {{ $fiche['etat'] }}
-                            @endif
-                        </td>
-
-                        <!-- Bouton d'action -->
-                        <td>
-                            <!-- On n'affiche le bouton Valider que si la fiche n'est pas déjà validée -->
-                            @if($fiche['idEtat'] != 'VA')
+                            @if($fiche['idEtat'] != 'VA' && $fiche['idEtat'] != 'RB')
                                 <a href="{{ route('chemin_validerFiche', ['idVisiteur' => $fiche['idVisiteur'], 'mois' => $fiche['mois']]) }}"
-                                   class="btn btn-success btn-xs"
-                                   onclick="return confirm('Voulez-vous vraiment valider cette fiche ?');">
-                                    <span class="glyphicon glyphicon-ok"></span> Valider
+                                   onclick="return confirm('Valider cette fiche ?');">
+                                    Valider
                                 </a>
                             @else
-                                <span class="text-muted"><small>Déjà validée</small></span>
+                                <span style="color:green">Validée/Payée</span>
                             @endif
+                            |
+                            <a href="{{ route('chemin_telechargerPdfComptable', ['idVisiteur' => $fiche['idVisiteur'], 'mois' => $fiche['mois']]) }}" title="PDF">
+                                PDF
+                            </a>
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr><td colspan="6">Aucune fiche à traiter.</td></tr>
+                @endforelse
                 </tbody>
             </table>
         </div>

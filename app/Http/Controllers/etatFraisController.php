@@ -4,6 +4,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use PdoGsb;
 use MyDate;
+use Barryvdh\DomPDF\Facade\Pdf;
+
+
+
 class etatFraisController extends Controller
 {
     function selectionnerMois(){
@@ -31,7 +35,7 @@ class etatFraisController extends Controller
         if( session('visiteur')!= null){
             $visiteur = session('visiteur');
             $idVisiteur = $visiteur['id'];
-            $leMois = $request['lstMois']; 
+            $leMois = $request['lstMois'];
 		    $lesMois = PdoGsb::getLesMoisDisponibles($idVisiteur);
             $lesFraisForfait = PdoGsb::getLesFraisForfait($idVisiteur,$leMois);
 		    $lesInfosFicheFrais = PdoGsb::getLesInfosFicheFrais($idVisiteur,$leMois);
@@ -54,6 +58,42 @@ class etatFraisController extends Controller
         }
         else{
             return view('connexion')->with('erreurs',null);
+        }
+    }
+
+
+    function telechargerPdf($mois){
+        if( session('visiteur')!= null){
+            $visiteur = session('visiteur');
+            $idVisiteur = $visiteur['id'];
+
+            // Récupération des données (identique à voirFrais)
+            $lesFraisForfait = PdoGsb::getLesFraisForfait($idVisiteur, $mois);
+            $lesInfosFicheFrais = PdoGsb::getLesInfosFicheFrais($idVisiteur, $mois);
+            $numAnnee = MyDate::extraireAnnee($mois);
+            $numMois = MyDate::extraireMois($mois);
+            $libEtat = $lesInfosFicheFrais['libEtat'];
+            $montantValide = $lesInfosFicheFrais['montantValide'];
+            $nbJustificatifs = $lesInfosFicheFrais['nbJustificatifs'];
+            $dateModif =  $lesInfosFicheFrais['dateModif'];
+            $dateModifFr = MyDate::getFormatFrançais($dateModif);
+
+            // Génération du PDF
+            $pdf = Pdf::loadView('pdf.fichefrais', [
+                'visiteur' => $visiteur,
+                'lesFraisForfait' => $lesFraisForfait,
+                'numAnnee' => $numAnnee,
+                'numMois' => $numMois,
+                'libEtat' => $libEtat,
+                'montantValide' => $montantValide,
+                'nbJustificatifs' => $nbJustificatifs,
+                'dateModif' => $dateModifFr
+            ]);
+
+            return $pdf->download('fiche-frais-'.$mois.'.pdf');
+        }
+        else{
+            return redirect()->route('chemin_connexion');
         }
     }
 }
